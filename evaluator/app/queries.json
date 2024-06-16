@@ -1,0 +1,12 @@
+[
+    {
+        "TITLE": "Get count of all relationships",
+        "NEO4J": "MATCH ()-[r]->() RETURN count(r)",
+        "POSTGRES": "select COUNT(*) from relationships" 
+    },
+    {
+        "TITLE": "Get all distinct nodes",
+        "NEO4J": "MATCH (n) RETURN DISTINCT n",
+        "POSTGRES": "SELECT node FROM (SELECT node1 AS node FROM relationships UNION SELECT node2 AS node FROM relationships)" 
+    }
+]

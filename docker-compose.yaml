@@ -1,0 +1,39 @@
+name: nosql-project
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: postgres-container
+    restart: unless-stopped
+    volumes:
+      - ./pg_data:/var/lib/postgresql/data
+      - ./import:/import
+    ports:
+      - "5433:5432"
+    env_file:
+      - .env
+    
+  neo4j:
+    image: neo4j:5.20
+    container_name: neo4j-container
+    restart: unless-stopped
+    volumes:
+      - ./neo4j_db/data:/data
+      - ./neo4j_db/logs:/logs
+      - ./import:/var/lib/neo4j/import
+      - ./neo4j_db/plugins:/plugins
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    env_file:
+      - .env
+
+  evaluator:
+    build: ./evaluator
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - neo4j
+      - postgres
+    
