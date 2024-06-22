@@ -28,12 +28,12 @@ services:
     env_file:
       - .env
 
-  evaluator:
-    build: ./evaluator
-    restart: unless-stopped
-    env_file:
-      - .env
-    depends_on:
-      - neo4j
-      - postgres
+  # evaluator:
+  #   build: ./evaluator
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
+  #   depends_on:
+  #     - neo4j
+  #     - postgres
     
