@@ -1,12 +1,52 @@
 [
     {
-        "TITLE": "Get count of all relationships",
-        "NEO4J": "MATCH ()-[r]->() RETURN count(r)",
-        "POSTGRES": "select COUNT(*) from relationships" 
+        "TITLE": "Get all male people",
+        "NEO4J": "MATCH (u:User {gender:'1.0'}) RETURN u",
+        "POSTGRES": "SELECT * FROM details WHERE gender = '1.0'"
     },
     {
-        "TITLE": "Get all distinct nodes",
-        "NEO4J": "MATCH (n) RETURN DISTINCT n",
-        "POSTGRES": "SELECT node FROM (SELECT node1 AS node FROM relationships UNION SELECT node2 AS node FROM relationships)" 
+        "TITLE": "Get all engineers",
+        "NEO4J": "MATCH (u:User) WHERE u.job_title =~ '.*engineer.*' RETURN u",
+        "POSTGRES": "SELECT * FROM details WHERE job_title LIKE '%engineer%'"
+    },
+    {
+        "TITLE": "Get the number of people that live in 'LasVegas'",
+        "NEO4J": "MATCH (u:User)-[]-(:Place {name:'LasVegas'}) RETURN count(u)",
+        "POSTGRES": "SELECT COUNT(*) FROM details_place as dp INNER JOIN (SELECT * FROM place WHERE name='LasVegas') as p ON dp.place_id=p.id"
+    },
+    {
+        "TITLE": "Users with most connections",
+        "NEO4J": "MATCH (u:User)-[r:CONNECTED_TO]->() RETURN u.name AS UserName, COUNT(r) AS Connections ORDER BY Connections DESC LIMIT 10;",
+        "POSTGRES": "SELECT details.name AS UserName, COUNT(relationships.person2) AS Connections FROM details JOIN relationships ON details.name = relationships.person1 GROUP BY details.name ORDER BY Connections DESC LIMIT 10;"
+    },
+    {
+        "TITLE": "10 most popular universities",
+        "NEO4J": "MATCH (u:User)-[:studies_at]->(university:University) RETURN university.name AS UniversityName, COUNT(u) AS NumberOfUsers ORDER BY NumberOfUsers DESC LIMIT 10;",
+        "POSTGRES": "SELECT university.name AS UniversityName, COUNT(details_university.details_id) AS NumberOfUsers FROM university JOIN details_university ON university.id = details_university.university_id GROUP BY university.name ORDER BY NumberOfUsers DESC LIMIT 10;"
+    },
+    {
+        "TITLE":"Find all colleagues connections",
+        "NEO4J": "MATCH (u1:User)-[:works_at]->(i:Institution)<-[:works_at]-(u2:User) WHERE id(u1) < id(u2) RETURN u1.name AS User1, u2.name AS User2, i.name AS Institution;",
+        "POSTGRES": "SELECT d1.name AS User1, d2.name AS User2, i.name AS Institution FROM details d1 JOIN details_institution di1 ON d1.id = di1.details_id JOIN institution i ON di1.institution_id = i.id JOIN details_institution di2 ON i.id = di2.institution_id JOIN details d2 ON di2.details_id = d2.id WHERE d1.id < d2.id;"
+    },
+    {
+        "TITLE":"count the total number of connections between people working in 'Google' and people working in 'Microsoft'",
+        "NEO4J":"MATCH (:Institution {name:'Google'})<-[]-(u1:User)-[r]->(u2:User)-[]->(:Institution {name:'Microsoft'}) RETURN r",
+        "POSTGRES":"SELECT * FROM details as d1 JOIN details_institution as di1 ON d1.id=di1.details_id JOIN (SELECT * FROM institution WHERE name='Google') as google ON di1.institution_id=google.id JOIN relationships as r ON r.person1=d1.name JOIN details as d2 ON r.person2=d2.name JOIN details_institution as di2 ON d2.id=di2.details_id JOIN (SELECT * FROM institution WHERE name='Microsoft') as msoft ON di2.institution_id=msoft.id" 
+    },
+    {
+        "TITLE": "Mutual friends between 2 people",
+        "NEO4J": "MATCH (u1:User {name: '106862156479660675047'})-[:CONNECTED_TO]->(friend)<-[:CONNECTED_TO]-(u2:User {name: '101692096009250888838'}) RETURN friend.name AS CommonFriend;",
+        "POSTGRES": "SELECT d.name AS CommonFriend FROM relationships r1 JOIN relationships r2 ON r1.person2 = r2.person2 JOIN details d ON r1.person2 = d.name WHERE r1.person1 = '106862156479660675047' AND r2.person1 = '101692096009250888838';"
+    },
+    {
+        "TITLE":"For one preson find the person with whom he has most mutal friends",
+        "NEO4J": "MATCH (u1:User {name: '101692096009250888838'})-[:CONNECTED_TO]->(mutualFriend:User)<-[:CONNECTED_TO]-(u2:User) WHERE u1 <> u2 WITH u1, u2, COUNT(mutualFriend) AS mutualFriendsCount ORDER BY mutualFriendsCount DESC WITH u1, COLLECT({person: u2, count: mutualFriendsCount}) AS mutuals RETURN u1.name AS User, mutuals[0].person.name AS MostMutualFriend, mutuals[0].count AS MutualFriendsCount;",
+        "POSTGRES": "WITH user_relationships AS ( SELECT person1, person2 FROM relationships WHERE person1 = '101692096009250888838' ), user_friends AS ( SELECT ur.person1 AS user1, r2.person1 AS user2, r2.person2 AS friend_of_friend FROM user_relationships ur JOIN relationships r2 ON ur.person2 = r2.person1 WHERE ur.person1 <> r2.person2 ), non_mutual_friends AS ( SELECT uf.user1, uf.user2, uf.friend_of_friend FROM user_friends uf LEFT JOIN relationships r3 ON uf.user1 = r3.person1 AND uf.friend_of_friend = r3.person2 WHERE r3.person2 IS NULL ), mutual_friends AS ( SELECT nmf.user1, nmf.user2, nmf.friend_of_friend FROM non_mutual_friends nmf JOIN relationships r4 ON nmf.user1 = r4.person1 JOIN relationships r5 ON nmf.friend_of_friend = r5.person1 AND r4.person2 = r5.person2 ) SELECT d1.name AS User, d2.name AS Friend, d3.name AS NonMutualFriend, COUNT(r5.person2) AS MutualFriendsCount FROM mutual_friends mf JOIN details d1 ON mf.user1 = d1.name JOIN details d2 ON mf.user2 = d2.name JOIN details d3 ON mf.friend_of_friend = d3.name JOIN relationships r5 ON mf.user1 = r5.person1 AND mf.friend_of_friend = r5.person2 GROUP BY d1.name, d2.name, d3.name;"
+    },
+    {
+        "TITLE":"For all persons with last name david (11) find the non mutal friends with his friend that hava a mutal friend with him",
+        "NEO4J": "MATCH (p1:User {last_name:'david'})-[:CONNECTED_TO]->(p2:User), (p2)-[:CONNECTED_TO]->(p3:User) WHERE NOT (p1)-[:CONNECTED_TO]->(p3) WITH p1, p2, p3 MATCH (p1)-[:CONNECTED_TO]->(mutualFriend:User)-[:CONNECTED_TO]->(p3) RETURN p1.name AS User, p2.name AS Friend, p3.name AS NonMutualFriend, COUNT(mutualFriend) AS MutualFriendsCount;",
+        "POSTGRES": "WITH user_relationships AS ( SELECT person1, person2 FROM relationships JOIN details d on d.name=relationships.person1 AND d.last_name = 'david' ), mutual_friends AS ( SELECT ur1.person1 AS user1, ur2.person1 AS user2, COUNT(*) AS mutualFriendsCount FROM user_relationships ur1 JOIN relationships ur2 ON ur1.person2 = ur2.person2 AND ur1.person1 <> ur2.person1 GROUP BY ur1.person1, ur2.person1 ), ranked_friends AS ( SELECT user1, user2, mutualFriendsCount, ROW_NUMBER() OVER (PARTITION BY user1 ORDER BY mutualFriendsCount DESC) AS rank FROM mutual_friends ) SELECT d1.name AS User, d2.name AS MostMutualFriend, mf.mutualFriendsCount FROM ranked_friends mf JOIN details d1 ON mf.user1 = d1.name JOIN details d2 ON mf.user2 = d2.name WHERE mf.rank = 1;"
     }
 ]

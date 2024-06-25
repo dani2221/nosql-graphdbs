@@ -20,20 +20,27 @@ services:
     volumes:
       - ./neo4j_db/data:/data
       - ./neo4j_db/logs:/logs
+      - ./neo4j_db/conf:/conf
       - ./import:/var/lib/neo4j/import
       - ./neo4j_db/plugins:/plugins
+      - ./neo4j_db/conf/neo4j.conf:/conf/neo4j.conf
+    environment:
+      - NEO4J_dbms_memory_heap_initial__size=2G
+      - NEO4J_dbms_memory_heap_max__size=6G
     ports:
       - "7474:7474"
       - "7687:7687"
     env_file:
       - .env
 
-  # evaluator:
-  #   build: ./evaluator
-  #   restart: unless-stopped
-  #   env_file:
-  #     - .env
-  #   depends_on:
-  #     - neo4j
-  #     - postgres
+  evaluator:
+    build: ./evaluator
+    restart: unless-stopped
+    volumes:
+      - ./output:/output
+    env_file:
+      - .env
+    depends_on:
+      - neo4j
+      - postgres
     

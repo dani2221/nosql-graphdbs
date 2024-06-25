@@ -18,21 +18,28 @@ if __name__ == '__main__':
     neo4j.connect(os.environ.get("NEO4JDATABASE_URL"))
     postgres.connect(os.environ.get("POSTGRES_DATABASE_URL"))
     
-    
+    results = []
     for query in config:
         print(f"EXECUTING: {query['TITLE']}", flush=True)
+        query['RESULT'] = {}
         
-        print("NEO4J QUERY:", flush=True)
-        print(query["NEO4J"], flush=True)
         rows, t = neo4j.execute(query['NEO4J'])
         print(f"NEO4J TOOK {t} seconds and queried {rows} results", flush=True)
         
-        print("POSTGRES QUERY:", flush=True)
-        print(query["POSTGRES"], flush=True)
+        query['RESULT']['NEO4J_TIME'] = t
+        
         rows, t = postgres.execute(query['POSTGRES'])
         print(f"POSTGRES TOOK {t} seconds and queried {rows} results", flush=True)
         
+        query['RESULT']['POSTGRES_TIME'] = t
+        
         print('\n\n', flush=True)
+        results.append(query)
+        
+    with open('../output/results.json', 'w+') as fout:
+        json.dump(results, fout)
+    
+    time.sleep(600)
         
         
         
